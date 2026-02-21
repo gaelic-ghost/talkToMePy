@@ -18,6 +18,7 @@ export TALKTOMEPY_HOST="127.0.0.1"
 export TALKTOMEPY_PORT="8000"
 export TALKTOMEPY_RELOAD="false"
 export QWEN_TTS_IDLE_UNLOAD_SECONDS="900"
+export QWEN_TTS_WARM_LOAD_ON_START="true"
 
 # Optional per-machine overrides for launchd usage.
 if [[ -f "$REPO_DIR/.env.launchd" ]]; then

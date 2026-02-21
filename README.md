@@ -106,6 +106,10 @@ Notes for modern macOS (including macOS 26):
 - `POST /model/unload` unloads the model from memory
 - `POST /synthesize` returns generated audio bytes as `audio/wav`
 
+Notes:
+- `POST /model/load` may return `202 Accepted` while loading is in progress.
+- `POST /synthesize` returns `503` with `Retry-After` if model is still loading.
+
 ## Quickstart
 
 ```bash
@@ -152,6 +156,7 @@ uv run python scripts/voice_design_smoke.py \
 - `/synthesize` currently supports `format: "wav"` only.
 - Model id can be overridden with env var `QWEN_TTS_MODEL_ID`.
 - Optional idle auto-unload can be enabled with env var `QWEN_TTS_IDLE_UNLOAD_SECONDS`.
+- Optional startup warm-load can be enabled with env var `QWEN_TTS_WARM_LOAD_ON_START=true`.
 - Optional load settings: `QWEN_TTS_DEVICE_MAP`, `QWEN_TTS_TORCH_DTYPE`.
 
 ## Roadmap

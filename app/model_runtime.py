@@ -4,6 +4,7 @@ import gc
 import importlib
 import os
 import shutil
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -14,6 +15,9 @@ MODEL_ID = os.getenv("QWEN_TTS_MODEL_ID", DEFAULT_MODEL_ID)
 
 _MODEL: Any | None = None
 _LAST_USED_AT: float | None = None
+_LOADING = False
+_LOAD_ERROR: str | None = None
+_STATE_LOCK = threading.RLock()
 
 
 class ModelRuntimeError(Exception):
@@ -28,6 +32,10 @@ class ModelLoadError(ModelRuntimeError):
     """Raised when model loading fails."""
 
 
+class ModelLoadingError(ModelLoadError):
+    """Raised when model load is currently in progress."""
+
+
 class SynthesisError(ModelRuntimeError):
     """Raised when synthesis fails."""
 
@@ -36,8 +44,10 @@ class SynthesisError(ModelRuntimeError):
 class RuntimeStatus:
     model_id: str
     loaded: bool
+    loading: bool
     sox_available: bool
     qwen_tts_available: bool
+    load_error: str | None
     seconds_since_last_use: float | None
 
     @property
@@ -48,6 +58,10 @@ class RuntimeStatus:
     def detail(self) -> str:
         if self.loaded:
             return "Model is loaded and ready."
+        if self.loading:
+            return "Model is currently loading. Please wait."
+        if self.load_error:
+            return f"Last model load failed: {self.load_error}"
         if not self.sox_available:
             return "Missing `sox` on PATH."
         if not self.qwen_tts_available:
@@ -59,15 +73,23 @@ def get_runtime_status() -> RuntimeStatus:
     sox_available = shutil.which("sox") is not None
     qwen_tts_available = importlib.util.find_spec("qwen_tts") is not None
 
+    with _STATE_LOCK:
+        model_loaded = _MODEL is not None
+        loading = _LOADING
+        load_error = _LOAD_ERROR
+        last_used = _LAST_USED_AT
+
     seconds_since_last_use: float | None = None
-    if _MODEL is not None and _LAST_USED_AT is not None:
-        seconds_since_last_use = max(0.0, time.monotonic() - _LAST_USED_AT)
+    if model_loaded and last_used is not None:
+        seconds_since_last_use = max(0.0, time.monotonic() - last_used)
 
     return RuntimeStatus(
         model_id=MODEL_ID,
-        loaded=_MODEL is not None,
+        loaded=model_loaded,
+        loading=loading,
         sox_available=sox_available,
         qwen_tts_available=qwen_tts_available,
+        load_error=load_error,
         seconds_since_last_use=seconds_since_last_use,
     )
 
@@ -90,17 +112,7 @@ def _resolve_torch_dtype():
     )
 
 
-def ensure_model_loaded() -> RuntimeStatus:
-    global _MODEL
-
-    if _MODEL is not None:
-        _touch_model_usage()
-        return get_runtime_status()
-
-    status = get_runtime_status()
-    if not status.ready:
-        raise RuntimeDependencyError(status.detail)
-
+def _build_load_kwargs() -> dict[str, Any]:
     device_map = os.getenv("QWEN_TTS_DEVICE_MAP", "auto").strip()
     load_kwargs: dict[str, Any] = {}
     if device_map:
@@ -110,16 +122,51 @@ def ensure_model_loaded() -> RuntimeStatus:
     if dtype is not None:
         load_kwargs["torch_dtype"] = dtype
 
-    try:
-        qwen_tts = importlib.import_module("qwen_tts")
-        model_cls = getattr(qwen_tts, "Qwen3TTSModel")
-        _MODEL = model_cls.from_pretrained(MODEL_ID, **load_kwargs)
-    except ModelLoadError:
-        raise
-    except Exception as exc:
-        raise ModelLoadError(f"Failed to load model `{MODEL_ID}`: {exc}") from exc
+    return load_kwargs
 
-    _touch_model_usage()
+
+def _load_model() -> Any:
+    qwen_tts = importlib.import_module("qwen_tts")
+    model_cls = getattr(qwen_tts, "Qwen3TTSModel")
+    return model_cls.from_pretrained(MODEL_ID, **_build_load_kwargs())
+
+
+def ensure_model_loaded() -> RuntimeStatus:
+    global _MODEL
+
+    status = get_runtime_status()
+    if status.loaded:
+        _touch_model_usage()
+        return get_runtime_status()
+    if status.loading:
+        raise ModelLoadingError("Model is currently loading. Please wait and retry shortly.")
+    if not status.ready:
+        raise RuntimeDependencyError(status.detail)
+
+    with _STATE_LOCK:
+        if _MODEL is not None:
+            _touch_model_usage()
+            return get_runtime_status()
+        if _LOADING:
+            raise ModelLoadingError("Model is currently loading. Please wait and retry shortly.")
+        _set_loading(True)
+        _set_load_error(None)
+
+    try:
+        model = _load_model()
+    except Exception as exc:
+        message = f"Failed to load model `{MODEL_ID}`: {exc}"
+        with _STATE_LOCK:
+            _set_loading(False)
+            _set_load_error(message)
+        raise ModelLoadError(message) from exc
+
+    with _STATE_LOCK:
+        _MODEL = model
+        _set_loading(False)
+        _set_load_error(None)
+        _touch_model_usage()
+
     return get_runtime_status()
 
 
@@ -128,10 +175,62 @@ def _touch_model_usage() -> None:
     _LAST_USED_AT = time.monotonic()
 
 
+def _set_loading(value: bool) -> None:
+    global _LOADING
+    _LOADING = value
+
+
+def _set_load_error(value: str | None) -> None:
+    global _LOAD_ERROR
+    _LOAD_ERROR = value
+
+
+def _background_load_worker() -> None:
+    global _MODEL
+
+    try:
+        model = _load_model()
+    except Exception as exc:
+        message = f"Failed to load model `{MODEL_ID}`: {exc}"
+        with _STATE_LOCK:
+            _set_loading(False)
+            _set_load_error(message)
+        return
+
+    with _STATE_LOCK:
+        _MODEL = model
+        _set_loading(False)
+        _set_load_error(None)
+        _touch_model_usage()
+
+
+def start_model_loading() -> bool:
+    status = get_runtime_status()
+    if status.loaded:
+        return False
+    if status.loading:
+        return False
+    if not status.ready:
+        raise RuntimeDependencyError(status.detail)
+
+    with _STATE_LOCK:
+        if _MODEL is not None or _LOADING:
+            return False
+        _set_loading(True)
+        _set_load_error(None)
+
+    thread = threading.Thread(target=_background_load_worker, daemon=True)
+    thread.start()
+    return True
+
+
 def unload_model() -> RuntimeStatus:
     global _MODEL, _LAST_USED_AT
-    _MODEL = None
-    _LAST_USED_AT = None
+
+    with _STATE_LOCK:
+        _MODEL = None
+        _LAST_USED_AT = None
+        _set_load_error(None)
     gc.collect()
     return get_runtime_status()
 
@@ -139,10 +238,13 @@ def unload_model() -> RuntimeStatus:
 def maybe_unload_if_idle(idle_seconds: int) -> bool:
     if idle_seconds <= 0:
         return False
-    if _MODEL is None or _LAST_USED_AT is None:
-        return False
-    if (time.monotonic() - _LAST_USED_AT) < idle_seconds:
-        return False
+    with _STATE_LOCK:
+        if _LOADING:
+            return False
+        if _MODEL is None or _LAST_USED_AT is None:
+            return False
+        if (time.monotonic() - _LAST_USED_AT) < idle_seconds:
+            return False
     unload_model()
     return True
 
@@ -153,14 +255,18 @@ def synthesize_voice_design(
     instruct: str,
     language: str,
 ) -> tuple[list[Any], int]:
-    global _MODEL
+    status = get_runtime_status()
+    if status.loading and not status.loaded:
+        raise ModelLoadingError("Model is currently loading. Please wait and retry shortly.")
 
     ensure_model_loaded()
-    if _MODEL is None:
+    with _STATE_LOCK:
+        model = _MODEL
+    if model is None:
         raise SynthesisError("Model is not loaded.")
 
     try:
-        wavs, sample_rate = _MODEL.generate_voice_design(
+        wavs, sample_rate = model.generate_voice_design(
             text=text,
             instruct=instruct,
             language=language,

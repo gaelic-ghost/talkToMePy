@@ -14,11 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `scripts/run_service.sh`
 - `.env.example` with runtime/service configuration keys.
 - Bootstrap script `scripts/setup.sh` for first-run setup.
+- Startup warm-load option via `QWEN_TTS_WARM_LOAD_ON_START`.
 
 ### Changed
 - `GET /model/status` now reports idle/last-use metadata.
 - `main.py` now uses env-configurable host/port/reload and defaults to `reload=false`.
 - README now includes a quick demo flow and portable launchd install instructions.
+- `/model/status` now reports model loading state and last load error details.
+- `/model/load` now returns `202` while asynchronous model loading is in progress.
+- `/synthesize` now returns `503` with retry guidance when model loading is in progress.
 
 ## [0.1.0] - 2026-02-21
 

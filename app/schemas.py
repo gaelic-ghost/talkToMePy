@@ -18,8 +18,10 @@ class SynthesizeRequest(BaseModel):
 class ModelStatusResponse(BaseModel):
     model_id: str
     loaded: bool
+    loading: bool
     sox_available: bool
     qwen_tts_available: bool
+    load_error: str | None
     seconds_since_last_use: float | None
     idle_unload_seconds: int
     auto_unload_enabled: bool
