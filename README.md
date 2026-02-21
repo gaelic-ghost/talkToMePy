@@ -96,6 +96,7 @@ rm ~/Library/LaunchAgents/com.talktomepy.plist
 Notes for modern macOS (including macOS 26):
 - Prefer `bootstrap`/`bootout`/`kickstart` over legacy `load`/`unload`.
 - `launchd` has a minimal environment; keep required env vars in `scripts/run_service.sh`.
+- `scripts/run_service.sh` sets a Homebrew-friendly default `PATH` so `sox` is resolvable under launchd.
 
 ## Endpoints
 

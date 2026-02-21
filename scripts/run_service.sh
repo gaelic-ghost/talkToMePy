@@ -13,6 +13,7 @@ fi
 cd "$REPO_DIR"
 
 # Launchd jobs run with a minimal environment, so set runtime env explicitly.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export TALKTOMEPY_HOST="127.0.0.1"
 export TALKTOMEPY_PORT="8000"
 export TALKTOMEPY_RELOAD="false"
