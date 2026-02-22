@@ -119,10 +119,14 @@ Notes for modern macOS (including macOS 26):
 ## Endpoints
 
 - `GET /health` returns service status
+- `GET /version` returns API/service version metadata
+- `GET /adapters` lists available runtime adapters
+- `GET /adapters/{adapter_id}/status` returns adapter-specific status
 - `GET /model/status` returns model runtime readiness (SoX, qwen-tts, load state)
 - `POST /model/load` lazily loads the configured model into memory
 - `POST /model/unload` unloads the model from memory
 - `POST /synthesize` returns generated audio bytes as `audio/wav`
+- `POST /synthesize/stream` streams generated audio bytes as `audio/wav`
 
 Notes:
 - `POST /model/load` may return `202 Accepted` while loading is in progress.
@@ -132,6 +136,18 @@ Notes:
 
 ```bash
 curl http://127.0.0.1:8000/health
+```
+
+```bash
+curl http://127.0.0.1:8000/version
+```
+
+```bash
+curl http://127.0.0.1:8000/adapters
+```
+
+```bash
+curl http://127.0.0.1:8000/adapters/qwen3-tts/status
 ```
 
 ```bash
@@ -151,6 +167,13 @@ curl -X POST http://127.0.0.1:8000/synthesize \
   -H "Content-Type: application/json" \
   -d '{"text":"Hello from Swift bridge!","instruct":"Warm and friendly voice with steady pace.","language":"English","format":"wav"}' \
   --output outputs/from_service.wav
+```
+
+```bash
+curl -N -X POST http://127.0.0.1:8000/synthesize/stream \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Streaming endpoint test.","instruct":"Warm and friendly voice with steady pace.","language":"English","format":"wav"}' \
+  --output outputs/from_stream.wav
 ```
 
 Play the generated file on macOS:
@@ -179,7 +202,6 @@ uv run python scripts/voice_design_smoke.py \
 
 ## Roadmap
 
-- Add streaming synthesis response mode
 - Add optional on-disk audio caching
 - Add structured request/response logging and timing metrics
 - Add Docker setup for self-hosting on a local machine (for example Mac mini)
@@ -187,8 +209,14 @@ uv run python scripts/voice_design_smoke.py \
 
 ## TODO
 
-- Add unit tests for `/model/load` and `/synthesize` error paths
+- Add unit tests for `/model/load`, `/synthesize`, and `/synthesize/stream` error paths
 - Add integration test that writes and validates returned WAV header
 - Add graceful startup warm-load option (env-controlled)
 - Add response metadata headers for generation latency
+- Add `GET /adapters/{id}/voices` for discoverable voice/speaker options
+- Add generalized `POST /adapters/{id}/load` and `POST /adapters/{id}/unload` endpoints
+- Add async synthesis job APIs:
+  - `POST /synthesize/jobs`
+  - `GET /synthesize/jobs/{job_id}`
+  - `GET /synthesize/jobs/{job_id}/audio`
 - Add example Swift client snippet directly in this repo

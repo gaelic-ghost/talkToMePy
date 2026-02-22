@@ -27,3 +27,34 @@ class ModelStatusResponse(BaseModel):
     auto_unload_enabled: bool
     ready: bool
     detail: str
+
+
+class VersionResponse(BaseModel):
+    service: str
+    api_version: str
+    openapi_version: str
+
+
+class AdapterInfo(BaseModel):
+    id: str
+    name: str
+    status_path: str
+
+
+class AdaptersResponse(BaseModel):
+    adapters: list[AdapterInfo]
+
+
+class AdapterStatusResponse(BaseModel):
+    adapter_id: str
+    model_id: str
+    loaded: bool
+    loading: bool
+    sox_available: bool
+    qwen_tts_available: bool
+    load_error: str | None
+    seconds_since_last_use: float | None
+    idle_unload_seconds: int
+    auto_unload_enabled: bool
+    ready: bool
+    detail: str

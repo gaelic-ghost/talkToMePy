@@ -17,6 +17,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /version:
+    get:
+      tags:
+      - system
+      summary: Version
+      operationId: version_version_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+  /adapters:
+    get:
+      tags:
+      - adapters
+      summary: Adapters
+      operationId: adapters_adapters_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdaptersResponse'
+  /adapters/{adapter_id}/status:
+    get:
+      tags:
+      - adapters
+      summary: Adapter Status
+      operationId: adapter_status_adapters__adapter_id__status_get
+      parameters:
+      - name: adapter_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Adapter Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdapterStatusResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /model/status:
     get:
       tags:
@@ -94,8 +146,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /synthesize/stream:
+    post:
+      tags:
+      - tts
+      summary: Synthesize Stream
+      operationId: synthesize_stream_synthesize_stream_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeRequest'
+        required: true
+      responses:
+        '200':
+          description: Generated WAV audio stream.
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (unsupported format).
+        '503':
+          description: Model is loading or runtime dependency unavailable.
+        '500':
+          description: Model load/synthesis failure.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AdapterInfo:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        status_path:
+          type: string
+          title: Status Path
+      type: object
+      required:
+      - id
+      - name
+      - status_path
+      title: AdapterInfo
+    AdapterStatusResponse:
+      properties:
+        adapter_id:
+          type: string
+          title: Adapter Id
+        model_id:
+          type: string
+          title: Model Id
+        loaded:
+          type: boolean
+          title: Loaded
+        loading:
+          type: boolean
+          title: Loading
+        sox_available:
+          type: boolean
+          title: Sox Available
+        qwen_tts_available:
+          type: boolean
+          title: Qwen Tts Available
+        load_error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Load Error
+        seconds_since_last_use:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Seconds Since Last Use
+        idle_unload_seconds:
+          type: integer
+          title: Idle Unload Seconds
+        auto_unload_enabled:
+          type: boolean
+          title: Auto Unload Enabled
+        ready:
+          type: boolean
+          title: Ready
+        detail:
+          type: string
+          title: Detail
+      type: object
+      required:
+      - adapter_id
+      - model_id
+      - loaded
+      - loading
+      - sox_available
+      - qwen_tts_available
+      - load_error
+      - seconds_since_last_use
+      - idle_unload_seconds
+      - auto_unload_enabled
+      - ready
+      - detail
+      title: AdapterStatusResponse
+    AdaptersResponse:
+      properties:
+        adapters:
+          items:
+            $ref: '#/components/schemas/AdapterInfo'
+          type: array
+          title: Adapters
+      type: object
+      required:
+      - adapters
+      title: AdaptersResponse
     HTTPValidationError:
       properties:
         detail:
@@ -219,3 +388,20 @@ components:
       - msg
       - type
       title: ValidationError
+    VersionResponse:
+      properties:
+        service:
+          type: string
+          title: Service
+        api_version:
+          type: string
+          title: Api Version
+        openapi_version:
+          type: string
+          title: Openapi Version
+      type: object
+      required:
+      - service
+      - api_version
+      - openapi_version
+      title: VersionResponse

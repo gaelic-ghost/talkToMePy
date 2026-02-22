@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Startup warm-load option via `QWEN_TTS_WARM_LOAD_ON_START`.
 - OpenAPI export script `scripts/export_openapi.py`.
 - Committed OpenAPI spec at `openapi/openapi.yaml`.
+- `GET /version` endpoint for API/service version metadata.
+- Adapter discovery/status endpoints:
+  - `GET /adapters`
+  - `GET /adapters/{adapter_id}/status`
+- `POST /synthesize/stream` endpoint for streaming WAV response transport.
 
 ### Changed
 - `GET /model/status` now reports idle/last-use metadata.
@@ -26,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `/model/load` now returns `202` while asynchronous model loading is in progress.
 - `/synthesize` now returns `503` with retry guidance when model loading is in progress.
 - OpenAPI docs now describe `/model/load` async `202` and `/synthesize` binary `audio/wav` responses.
+- README and OpenAPI docs now include the v1 subset endpoints above.
 
 ## [0.1.0] - 2026-02-21
 
