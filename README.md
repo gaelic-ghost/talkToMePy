@@ -62,6 +62,24 @@ uv run python main.py
 
 Service URL: `http://127.0.0.1:8000`
 
+## API Spec (OpenAPI)
+
+FastAPI exposes live docs/spec automatically:
+
+- OpenAPI JSON: `http://127.0.0.1:8000/openapi.json`
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
+
+This repo also includes a committed YAML spec:
+
+- `/Users/galew/Workspace/projects/talkToMePy/openapi/openapi.yaml`
+
+Regenerate it after API changes:
+
+```bash
+uv run python scripts/export_openapi.py
+```
+
 ## Run as macOS Background Service (launchd)
 
 This repo includes:

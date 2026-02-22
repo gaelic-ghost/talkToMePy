@@ -96,7 +96,17 @@ def model_status() -> ModelStatusResponse:
     return _build_model_status_response()
 
 
-@app.post("/model/load", response_model=ModelStatusResponse, tags=["system"])
+@app.post(
+    "/model/load",
+    response_model=ModelStatusResponse,
+    tags=["system"],
+    responses={
+        202: {
+            "description": "Model loading has started and is still in progress.",
+            "model": ModelStatusResponse,
+        }
+    },
+)
 def model_load() -> ModelStatusResponse:
     try:
         status_info = get_runtime_status()
@@ -122,6 +132,16 @@ def model_unload() -> ModelStatusResponse:
 @app.post(
     "/synthesize",
     tags=["tts"],
+    response_class=Response,
+    responses={
+        200: {
+            "description": "Generated WAV audio bytes.",
+            "content": {"audio/wav": {"schema": {"type": "string", "format": "binary"}}},
+        },
+        400: {"description": "Bad request (unsupported format)."},
+        503: {"description": "Model is loading or runtime dependency unavailable."},
+        500: {"description": "Model load/synthesis failure."},
+    },
 )
 def synthesize(payload: SynthesizeRequest) -> Response:
     if payload.format.lower() != "wav":

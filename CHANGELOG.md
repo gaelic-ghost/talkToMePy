@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `.env.example` with runtime/service configuration keys.
 - Bootstrap script `scripts/setup.sh` for first-run setup.
 - Startup warm-load option via `QWEN_TTS_WARM_LOAD_ON_START`.
+- OpenAPI export script `scripts/export_openapi.py`.
+- Committed OpenAPI spec at `openapi/openapi.yaml`.
 
 ### Changed
 - `GET /model/status` now reports idle/last-use metadata.
@@ -23,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `/model/status` now reports model loading state and last load error details.
 - `/model/load` now returns `202` while asynchronous model loading is in progress.
 - `/synthesize` now returns `503` with retry guidance when model loading is in progress.
+- OpenAPI docs now describe `/model/load` async `202` and `/synthesize` binary `audio/wav` responses.
 
 ## [0.1.0] - 2026-02-21
 
