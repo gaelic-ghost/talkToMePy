@@ -3,11 +3,12 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.talktomepy</string>
+  <string>__LABEL__</string>
 
   <key>ProgramArguments</key>
   <array>
     <string>__REPO_DIR__/scripts/run_service.sh</string>
+    <string>__ENV_FILE__</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -20,9 +21,9 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>__HOME__/Library/Logs/talktomepy.stdout.log</string>
+  <string>__STDOUT_LOG__</string>
 
   <key>StandardErrorPath</key>
-  <string>__HOME__/Library/Logs/talktomepy.stderr.log</string>
+  <string>__STDERR_LOG__</string>
 </dict>
 </plist>

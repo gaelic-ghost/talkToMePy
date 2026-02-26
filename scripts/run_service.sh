@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 VENV_PYTHON="$REPO_DIR/.venv/bin/python"
+ENV_FILE="${1:-$REPO_DIR/.env.launchd}"
 
 if [[ ! -x "$VENV_PYTHON" ]]; then
   echo "Expected venv python at $VENV_PYTHON"
@@ -20,10 +21,10 @@ export TALKTOMEPY_RELOAD="false"
 export QWEN_TTS_IDLE_UNLOAD_SECONDS="900"
 export QWEN_TTS_WARM_LOAD_ON_START="true"
 
-# Optional per-machine overrides for launchd usage.
-if [[ -f "$REPO_DIR/.env.launchd" ]]; then
+# Optional per-instance overrides for launchd usage.
+if [[ -f "$ENV_FILE" ]]; then
   set -a
-  source "$REPO_DIR/.env.launchd"
+  source "$ENV_FILE"
   set +a
 fi
 

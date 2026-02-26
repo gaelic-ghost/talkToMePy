@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gc
 import importlib
+import importlib.util
 import os
 import shutil
 import threading
@@ -17,6 +18,7 @@ _MODEL: Any | None = None
 _LAST_USED_AT: float | None = None
 _LOADING = False
 _LOAD_ERROR: str | None = None
+_CPU_FALLBACK_ACTIVE = False
 _STATE_LOCK = threading.RLock()
 
 
@@ -115,10 +117,19 @@ def _resolve_torch_dtype():
 def _build_load_kwargs() -> dict[str, Any]:
     device_map = os.getenv("QWEN_TTS_DEVICE_MAP", "auto").strip()
     load_kwargs: dict[str, Any] = {}
+    dtype = _resolve_torch_dtype()
+    if _CPU_FALLBACK_ACTIVE and (not device_map or device_map.lower() == "auto"):
+        load_kwargs["device_map"] = "cpu"
+        if dtype is None:
+            import torch
+
+            load_kwargs["torch_dtype"] = torch.float32
+        else:
+            load_kwargs["torch_dtype"] = dtype
+        return load_kwargs
+
     if device_map:
         load_kwargs["device_map"] = device_map
-
-    dtype = _resolve_torch_dtype()
     if dtype is not None:
         load_kwargs["torch_dtype"] = dtype
 
@@ -185,6 +196,11 @@ def _set_load_error(value: str | None) -> None:
     _LOAD_ERROR = value
 
 
+def _set_cpu_fallback_active(value: bool) -> None:
+    global _CPU_FALLBACK_ACTIVE
+    _CPU_FALLBACK_ACTIVE = value
+
+
 def _background_load_worker() -> None:
     global _MODEL
 
@@ -230,6 +246,7 @@ def unload_model() -> RuntimeStatus:
     with _STATE_LOCK:
         _MODEL = None
         _LAST_USED_AT = None
+        _set_cpu_fallback_active(False)
         _set_load_error(None)
     gc.collect()
     return get_runtime_status()
@@ -247,6 +264,44 @@ def maybe_unload_if_idle(idle_seconds: int) -> bool:
             return False
     unload_model()
     return True
+
+
+def _is_meta_tensor_runtime_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "meta tensor" in message and "tensor.item()" in message
+
+
+def _reload_model_with_cpu_fallback() -> None:
+    global _MODEL
+    configured_device_map = os.getenv("QWEN_TTS_DEVICE_MAP", "auto").strip().lower()
+    if configured_device_map and configured_device_map != "auto":
+        raise ModelLoadError(
+            "CPU fallback is only supported when QWEN_TTS_DEVICE_MAP is unset or set to `auto`."
+        )
+
+    with _STATE_LOCK:
+        _MODEL = None
+        _set_loading(True)
+        _set_load_error(None)
+        _set_cpu_fallback_active(True)
+
+    gc.collect()
+    try:
+        model = _load_model()
+    except Exception as exc:
+        message = (
+            f"Failed to reload model `{MODEL_ID}` with CPU fallback after runtime error: {exc}"
+        )
+        with _STATE_LOCK:
+            _set_loading(False)
+            _set_load_error(message)
+        raise ModelLoadError(message) from exc
+
+    with _STATE_LOCK:
+        _MODEL = model
+        _set_loading(False)
+        _set_load_error(None)
+        _touch_model_usage()
 
 
 def synthesize_voice_design(
@@ -272,7 +327,24 @@ def synthesize_voice_design(
             language=language,
         )
     except Exception as exc:
-        raise SynthesisError(f"Synthesis failed: {exc}") from exc
+        if _is_meta_tensor_runtime_error(exc):
+            try:
+                _reload_model_with_cpu_fallback()
+                with _STATE_LOCK:
+                    reloaded_model = _MODEL
+                if reloaded_model is None:
+                    raise SynthesisError("CPU fallback reload completed without a loaded model.")
+                wavs, sample_rate = reloaded_model.generate_voice_design(
+                    text=text,
+                    instruct=instruct,
+                    language=language,
+                )
+            except Exception as retry_exc:
+                raise SynthesisError(
+                    f"Synthesis failed after CPU fallback retry: {retry_exc}"
+                ) from retry_exc
+        else:
+            raise SynthesisError(f"Synthesis failed: {exc}") from exc
 
     if not wavs:
         raise SynthesisError("Synthesis returned no audio output.")

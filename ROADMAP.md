@@ -118,7 +118,25 @@
   - M1-T13 can begin once endpoint behavior stabilizes; it does not block tests.
 - Total estimate: ~9.25 engineering days (single-owner throughput).
 
+## Product Backlog
+### Near-Term Roadmap Items
+- Add optional on-disk audio caching.
+- Add structured request/response logging and timing metrics.
+- Add Docker setup for self-hosting on a local machine (for example Mac mini).
+- Add a small auth layer for non-local deployments.
+
+### TODO Queue
+- Add unit tests for `/model/load`, `/synthesize`, and `/synthesize/stream` error paths.
+- Add integration test that writes and validates returned WAV header.
+- Add graceful startup warm-load option (env-controlled).
+- Add response metadata headers for generation latency.
+- Add `GET /adapters/{id}/voices` for discoverable voice/speaker options.
+- Add generalized `POST /adapters/{id}/load` and `POST /adapters/{id}/unload` endpoints.
+- Add async synthesis job APIs: `POST /synthesize/jobs`, `GET /synthesize/jobs/{job_id}`, and `GET /synthesize/jobs/{job_id}/audio`.
+- Add an example Swift client snippet directly in this repo.
+
 ## Change Log
 - 2026-02-26: Initialized roadmap and set M1 for v0.5.0 API parity with committed OpenAPI spec.
 - 2026-02-26: Updated M1 status to In Progress and added ticket-level execution plan with owners, estimates, and dependencies.
 - 2026-02-26: Added live progress board and started execution with M1-T01 in progress.
+- 2026-02-26: Consolidated README `Roadmap` and `TODO` lists into `ROADMAP.md` under `Product Backlog`.

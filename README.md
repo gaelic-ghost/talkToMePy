@@ -46,13 +46,18 @@ This script:
 
 ## Configuration
 
-Copy and edit:
+Single-instance defaults:
 
 ```bash
 cp .env.example .env.launchd
 ```
 
-`scripts/run_service.sh` will load `.env.launchd` when running under launchd.
+Instance-specific launchd env files are also supported:
+
+- `.env.launchd.stable`
+- `.env.launchd.dev`
+
+`scripts/run_service.sh` accepts an env file path argument, and `scripts/launchd_instance.sh` wires this automatically.
 
 ## Run Service
 
@@ -72,7 +77,7 @@ FastAPI exposes live docs/spec automatically:
 
 This repo also includes a committed YAML spec:
 
-- `/Users/galew/Workspace/projects/talkToMePy/openapi/openapi.yaml`
+- `openapi/openapi.yaml`
 
 Regenerate it after API changes:
 
@@ -85,35 +90,52 @@ uv run python scripts/export_openapi.py
 This repo includes:
 - LaunchAgent template: `launchd/com.talktomepy.plist`
 - Runner script: `scripts/run_service.sh`
+- Instance manager: `scripts/launchd_instance.sh`
 
-Install and start (user agent):
+Install and start a single instance:
 
 ```bash
-REPO_DIR="$(pwd)"
-mkdir -p ~/Library/LaunchAgents
-cp launchd/com.talktomepy.plist ~/Library/LaunchAgents/com.talktomepy.plist
-sed -i '' "s|__REPO_DIR__|$REPO_DIR|g; s|__HOME__|$HOME|g" ~/Library/LaunchAgents/com.talktomepy.plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.talktomepy.plist
-launchctl kickstart -k gui/$(id -u)/com.talktomepy
+./scripts/launchd_instance.sh install --instance stable --port 8000
 ```
 
-Status and logs:
+Manage it:
 
 ```bash
-launchctl print gui/$(id -u)/com.talktomepy
-tail -f ~/Library/Logs/talktomepy.stdout.log ~/Library/Logs/talktomepy.stderr.log
+./scripts/launchd_instance.sh status --instance stable
+./scripts/launchd_instance.sh logs --instance stable
+./scripts/launchd_instance.sh restart --instance stable
+./scripts/launchd_instance.sh stop --instance stable
+./scripts/launchd_instance.sh remove --instance stable
 ```
 
-Stop and remove:
+### Stable + Dev Side-by-Side on One Mac
+
+Install from each clone with a different instance name and port:
+
+Stable clone (`~/Workspace/services/talkToMePy`):
 
 ```bash
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.talktomepy.plist
-rm ~/Library/LaunchAgents/com.talktomepy.plist
+cd ~/Workspace/services/talkToMePy
+./scripts/launchd_instance.sh install --instance stable --port 8000
+```
+
+Dev clone (`~/Workspace/talkToMePy`):
+
+```bash
+cd ~/Workspace/talkToMePy
+./scripts/launchd_instance.sh install --instance dev --port 8001
+```
+
+Health check both:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8001/health
 ```
 
 Notes for modern macOS (including macOS 26):
 - Prefer `bootstrap`/`bootout`/`kickstart` over legacy `load`/`unload`.
-- `launchd` has a minimal environment; keep required env vars in `scripts/run_service.sh`.
+- `launchd` has a minimal environment; keep required env vars in `scripts/run_service.sh` and per-instance env files.
 - `scripts/run_service.sh` sets a Homebrew-friendly default `PATH` so `sox` is resolvable under launchd.
 
 ## Endpoints
@@ -199,24 +221,6 @@ uv run python scripts/voice_design_smoke.py \
 - Optional idle auto-unload can be enabled with env var `QWEN_TTS_IDLE_UNLOAD_SECONDS`.
 - Optional startup warm-load can be enabled with env var `QWEN_TTS_WARM_LOAD_ON_START=true`.
 - Optional load settings: `QWEN_TTS_DEVICE_MAP`, `QWEN_TTS_TORCH_DTYPE`.
+- When `QWEN_TTS_DEVICE_MAP` is unset or `auto`, a synthesis meta-tensor runtime failure now triggers one automatic reload/retry on CPU (`device_map=cpu`, `torch_dtype=float32`).
 
-## Roadmap
-
-- Add optional on-disk audio caching
-- Add structured request/response logging and timing metrics
-- Add Docker setup for self-hosting on a local machine (for example Mac mini)
-- Add small auth layer for non-local deployments
-
-## TODO
-
-- Add unit tests for `/model/load`, `/synthesize`, and `/synthesize/stream` error paths
-- Add integration test that writes and validates returned WAV header
-- Add graceful startup warm-load option (env-controlled)
-- Add response metadata headers for generation latency
-- Add `GET /adapters/{id}/voices` for discoverable voice/speaker options
-- Add generalized `POST /adapters/{id}/load` and `POST /adapters/{id}/unload` endpoints
-- Add async synthesis job APIs:
-  - `POST /synthesize/jobs`
-  - `GET /synthesize/jobs/{job_id}`
-  - `GET /synthesize/jobs/{job_id}/audio`
-- Add example Swift client snippet directly in this repo
+Roadmap and TODO tracking live in `ROADMAP.md`.
