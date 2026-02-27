@@ -1,0 +1,431 @@
+openapi: 3.1.0
+info:
+  title: TalkToMePy Service
+  description: A local TTS service for Qwen3-TTS VoiceDesign and CustomVoice modes.
+  version: 0.5.0
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /version:
+    get:
+      tags: [system]
+      summary: Version
+      operationId: version_version_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+  /adapters:
+    get:
+      tags: [adapters]
+      summary: Adapters
+      operationId: adapters_adapters_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdaptersResponse'
+  /adapters/{adapter_id}/status:
+    get:
+      tags: [adapters]
+      summary: Adapter Status
+      operationId: adapter_status_adapters__adapter_id__status_get
+      parameters:
+        - name: adapter_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdapterStatusResponse'
+  /model/status:
+    get:
+      tags: [system]
+      summary: Model Status
+      operationId: model_status_model_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatusResponse'
+  /model/inventory:
+    get:
+      tags: [system]
+      summary: Model Inventory
+      operationId: model_inventory_model_inventory_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelInventoryResponse'
+  /model/load:
+    post:
+      tags: [system]
+      summary: Model Load
+      operationId: model_load_model_load_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelLoadRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatusResponse'
+        '202':
+          description: Model loading has started and is still in progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatusResponse'
+        '400':
+          description: Invalid mode/model selection.
+  /model/unload:
+    post:
+      tags: [system]
+      summary: Model Unload
+      operationId: model_unload_model_unload_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatusResponse'
+  /custom-voice/speakers:
+    get:
+      tags: [tts]
+      summary: CustomVoice Speakers
+      operationId: custom_voice_speakers_custom_voice_speakers_get
+      parameters:
+        - name: model_id
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ModelId'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomVoiceSpeakersResponse'
+        '400':
+          description: Invalid model_id for custom_voice.
+        '503':
+          description: Model runtime unavailable.
+  /synthesize/voice-design:
+    post:
+      tags: [tts]
+      summary: Synthesize VoiceDesign
+      operationId: synthesize_voice_design_synthesize_voice_design_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeVoiceDesignRequest'
+      responses:
+        '200':
+          description: Generated WAV audio bytes.
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (unsupported format).
+        '503':
+          description: Model is loading or runtime dependency unavailable.
+        '500':
+          description: Model load/synthesis failure.
+  /synthesize/custom-voice:
+    post:
+      tags: [tts]
+      summary: Synthesize CustomVoice
+      operationId: synthesize_custom_voice_synthesize_custom_voice_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeCustomVoiceRequest'
+      responses:
+        '200':
+          description: Generated WAV audio bytes.
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (unsupported format).
+        '503':
+          description: Model is loading or runtime dependency unavailable.
+        '500':
+          description: Model load/synthesis failure.
+  /synthesize/voice-clone:
+    post:
+      tags: [tts]
+      summary: Synthesize VoiceClone
+      operationId: synthesize_voice_clone_synthesize_voice_clone_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SynthesizeVoiceCloneRequest'
+      responses:
+        '200':
+          description: Generated WAV audio bytes.
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (unsupported format or invalid reference audio).
+        '503':
+          description: Model is loading or runtime dependency unavailable.
+        '500':
+          description: Model load/synthesis failure.
+components:
+  schemas:
+    ModelMode:
+      type: string
+      enum:
+        - voice_design
+        - custom_voice
+        - voice_clone
+    ModelId:
+      type: string
+      enum:
+        - Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
+        - Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+        - Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+        - Qwen/Qwen3-TTS-12Hz-0.6B-Base
+        - Qwen/Qwen3-TTS-12Hz-1.7B-Base
+    AdapterInfo:
+      type: object
+      required: [id, name, status_path]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status_path:
+          type: string
+    AdaptersResponse:
+      type: object
+      required: [adapters]
+      properties:
+        adapters:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdapterInfo'
+    AdapterStatusResponse:
+      type: object
+      required: [adapter_id, mode, model_id, loaded, loading, qwen_tts_available, ready, detail, strict_load, fallback_applied]
+      properties:
+        adapter_id:
+          type: string
+        mode:
+          $ref: '#/components/schemas/ModelMode'
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        requested_mode:
+          $ref: '#/components/schemas/ModelMode'
+        requested_model_id:
+          $ref: '#/components/schemas/ModelId'
+        loaded:
+          type: boolean
+        loading:
+          type: boolean
+        qwen_tts_available:
+          type: boolean
+        ready:
+          type: boolean
+        strict_load:
+          type: boolean
+        fallback_applied:
+          type: boolean
+        detail:
+          type: string
+    ModelStatusResponse:
+      type: object
+      required: [mode, model_id, loaded, loading, qwen_tts_available, ready, detail, strict_load, fallback_applied]
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModelMode'
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        requested_mode:
+          $ref: '#/components/schemas/ModelMode'
+        requested_model_id:
+          $ref: '#/components/schemas/ModelId'
+        loaded:
+          type: boolean
+        loading:
+          type: boolean
+        qwen_tts_available:
+          type: boolean
+        ready:
+          type: boolean
+        strict_load:
+          type: boolean
+        fallback_applied:
+          type: boolean
+        detail:
+          type: string
+    ModelLoadRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModelMode'
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        strict_load:
+          type: boolean
+          default: false
+    ModelInventoryEntry:
+      type: object
+      required: [mode, model_id, available, local_path]
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModelMode'
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        available:
+          type: boolean
+        local_path:
+          type: string
+    ModelInventoryResponse:
+      type: object
+      required: [models]
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelInventoryEntry'
+    CustomVoiceSpeakersResponse:
+      type: object
+      required: [model_id, speakers]
+      properties:
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        speakers:
+          type: array
+          items:
+            type: string
+    SynthesizeVoiceDesignRequest:
+      type: object
+      required: [text, instruct, language]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        instruct:
+          type: string
+          minLength: 1
+          default: A warm and clear speaking voice with natural pacing.
+        language:
+          type: string
+          minLength: 1
+          default: English
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        format:
+          type: string
+          default: wav
+    SynthesizeCustomVoiceRequest:
+      type: object
+      required: [text, speaker, language]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        speaker:
+          type: string
+          minLength: 1
+          default: ryan
+        instruct:
+          type: string
+        language:
+          type: string
+          minLength: 1
+          default: English
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        format:
+          type: string
+          default: wav
+    SynthesizeVoiceCloneRequest:
+      type: object
+      required: [text, reference_audio_b64, language]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        reference_audio_b64:
+          type: string
+          minLength: 1
+          description: Base64-encoded reference audio bytes used for cloning.
+        language:
+          type: string
+          minLength: 1
+          default: English
+        model_id:
+          $ref: '#/components/schemas/ModelId'
+        format:
+          type: string
+          default: wav
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          default: ok
+        service:
+          type: string
+          default: talktomepy
+    VersionResponse:
+      type: object
+      properties:
+        service:
+          type: string
+        api_version:
+          type: string
+        openapi_version:
+          type: string

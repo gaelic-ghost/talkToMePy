@@ -75,14 +75,29 @@ FastAPI exposes live docs/spec automatically:
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - ReDoc: `http://127.0.0.1:8000/redoc`
 
-This repo also includes a committed YAML spec:
+This repo includes separate target and generated YAML specs:
 
-- `openapi/openapi.yaml`
+- Target spec (do not overwrite): `openapi/openapi.yaml`
+- Backup copy of target spec: `openapi/openapi.target.yaml`
+- Generated from FastAPI/Pydantic models: `openapi/openapi.generated.yaml`
 
-Regenerate it after API changes:
+Regenerate the generated spec after API changes:
 
 ```bash
 uv run python scripts/export_openapi.py
+```
+
+Check parity between target and generated specs:
+
+```bash
+diff -u openapi/openapi.yaml openapi/openapi.generated.yaml
+```
+
+Run the parity gate test:
+
+```bash
+uv run python scripts/export_openapi.py
+uv run pytest -q tests/test_openapi_parity.py
 ```
 
 ## Run as macOS Background Service (launchd)

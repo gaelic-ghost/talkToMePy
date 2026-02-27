@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 
 import yaml
@@ -13,7 +14,14 @@ from app.api import app
 
 
 def main() -> None:
-    output_path = ROOT_DIR / "openapi" / "openapi.yaml"
+    output_path = Path(
+        os.getenv(
+            "OPENAPI_EXPORT_PATH",
+            str(ROOT_DIR / "openapi" / "openapi.generated.yaml"),
+        )
+    )
+    if not output_path.is_absolute():
+        output_path = ROOT_DIR / output_path
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     schema = app.openapi()

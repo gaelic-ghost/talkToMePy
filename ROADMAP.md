@@ -41,7 +41,7 @@
     - Route/method mismatch report is empty for spec vs `app.openapi()`.
   - Schema parity:
     - Request/response payloads for parity endpoints validate exactly as documented in spec.
-    - `scripts/export_openapi.py` output is unchanged when run after implementation (or spec is intentionally revised in same PR).
+    - `scripts/export_openapi.py` output (`openapi/openapi.generated.yaml`) matches `openapi/openapi.yaml` after implementation (or target spec is intentionally revised in same PR).
   - Runtime parity:
     - VoiceDesign, CustomVoice, and VoiceClone flows execute through unified runtime controls with deterministic 4xx/5xx mapping.
     - `GET /custom-voice/speakers` returns supported speakers for selected model or a documented 4xx/5xx failure.
@@ -81,7 +81,7 @@
 ### Ticket Plan (M1)
 | Ticket | Phase | Deliverable | Owner | Estimate | Depends On | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| M1-T01 | 1 | Produce frozen parity matrix (`spec route/schema` -> `code route/schema`) and lock gap list | Gale | 0.5d | - | In Progress |
+| M1-T01 | 1 | Produce frozen parity matrix (`spec route/schema` -> `code route/schema`) and lock gap list | Gale | 0.5d | - | Done |
 | M1-T02 | 1 | Define compatibility contract for legacy `/synthesize` and `/synthesize/stream` (deprecation behavior + headers/docs) | Gale | 0.5d | M1-T01 | Planned |
 | M1-T03 | 1 | Finalize canonical mode/model enums and error mapping table (`400/503/500`) | Gale | 0.5d | M1-T01 | Planned |
 | M1-T04 | 2 | Implement mode-aware runtime state and model load request handling (`voice_design/custom_voice/voice_clone`) | Gale | 1.0d | M1-T03 | Planned |
@@ -92,23 +92,52 @@
 | M1-T09 | 3 | Introduce new Pydantic schemas for load/inventory/speaker/custom/clone and align status payload shapes | Gale | 0.75d | M1-T03 | Planned |
 | M1-T10 | 3 | Preserve legacy endpoints by delegating to new handlers with migration-safe behavior | Gale | 0.5d | M1-T08 | Planned |
 | M1-T11 | 4 | Add endpoint tests for happy paths and key errors (invalid model/mode, loading state, invalid clone input) | Gale | 1.5d | M1-T07, M1-T08, M1-T09 | Planned |
-| M1-T12 | 4 | Add parity test/assertion: `openapi/openapi.yaml` == exported schema (or intentional diff gate) | Gale | 0.5d | M1-T07, M1-T08, M1-T09 | Planned |
+| M1-T12 | 4 | Add parity test/assertion: `openapi/openapi.yaml` == `openapi/openapi.generated.yaml` (or intentional diff gate) | Gale | 0.5d | M1-T07, M1-T08, M1-T09 | Done |
 | M1-T13 | 4 | Update README with new endpoints + migration examples and deprecation note | Gale | 0.5d | M1-T10 | Planned |
 | M1-T14 | 5 | Run smoke suite, finalize changelog entry, and mark milestone complete if acceptance criteria pass | Gale | 0.5d | M1-T11, M1-T12, M1-T13 | Planned |
 
 ### Live Progress Board (M1)
 #### In Progress
-- M1-T01 (Phase 1): Produce frozen parity matrix and lock gap list.
+- None.
 
 #### Planned
 - M1-T02, M1-T03
 - M1-T04, M1-T05, M1-T06
 - M1-T07, M1-T08, M1-T09, M1-T10
-- M1-T11, M1-T12, M1-T13
+- M1-T11, M1-T13
 - M1-T14
 
 #### Done
-- None yet.
+- M1-T01 (Phase 1): Frozen parity matrix and locked gap list completed.
+- M1-T12 (Phase 4): OpenAPI parity assertion added with CI export+test gate.
+
+### Frozen Parity Matrix (M1-T01)
+#### Route/Method Parity Snapshot (2026-02-26)
+| Spec Route | Method | Runtime Route Exists | Notes |
+| --- | --- | --- | --- |
+| `/health` | GET | Yes | Parity |
+| `/version` | GET | Yes | Parity |
+| `/adapters` | GET | Yes | Parity |
+| `/adapters/{adapter_id}/status` | GET | Yes | Parity |
+| `/model/status` | GET | Yes | Parity |
+| `/model/load` | POST | Yes | Runtime currently has no request body; spec expects `ModelLoadRequest` |
+| `/model/unload` | POST | Yes | Parity (pending schema-field alignment under M1-T09) |
+| `/model/inventory` | GET | No | Missing in runtime (`M1-T07`) |
+| `/custom-voice/speakers` | GET | No | Missing in runtime (`M1-T07`) |
+| `/synthesize/voice-design` | POST | No | Missing in runtime (`M1-T08`) |
+| `/synthesize/custom-voice` | POST | No | Missing in runtime (`M1-T08`) |
+| `/synthesize/voice-clone` | POST | No | Missing in runtime (`M1-T08`) |
+
+#### Code-Only Compatibility Routes (Not in Target Spec)
+- `POST /synthesize`
+- `POST /synthesize/stream`
+
+#### Locked Gap List
+- Implement missing parity endpoints (`M1-T07`, `M1-T08`).
+- Add mode-aware `ModelLoadRequest` and canonical mode/model mapping (`M1-T03`, `M1-T04`, `M1-T09`).
+- Expand runtime for `custom_voice` and `voice_clone` execution paths (`M1-T05`, `M1-T06`).
+- Preserve legacy `/synthesize` and `/synthesize/stream` as compatibility shims with documented deprecation path (`M1-T02`, `M1-T10`, `M1-T13`).
+- Add OpenAPI parity assertion tests and CI guardrails (`M1-T11`, `M1-T12`).
 
 ### Sequencing Notes
 - Critical path: M1-T01 -> M1-T03 -> M1-T04 -> M1-T05 -> M1-T08 -> M1-T11 -> M1-T14.
@@ -140,3 +169,6 @@
 - 2026-02-26: Updated M1 status to In Progress and added ticket-level execution plan with owners, estimates, and dependencies.
 - 2026-02-26: Added live progress board and started execution with M1-T01 in progress.
 - 2026-02-26: Consolidated README `Roadmap` and `TODO` lists into `ROADMAP.md` under `Product Backlog`.
+- 2026-02-26: Completed M1-T01 by freezing a route/method parity matrix and locking the gap list for Phase 2/3 implementation.
+- 2026-02-26: Split OpenAPI artifacts to protect target spec (`openapi/openapi.yaml`) from export overwrite; generator now writes `openapi/openapi.generated.yaml`.
+- 2026-02-26: Added OpenAPI parity test and CI gate (`export_openapi` + pytest) to enforce target vs generated spec drift detection.
