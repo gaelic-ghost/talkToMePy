@@ -170,6 +170,7 @@
 - Add generalized `POST /adapters/{id}/load` and `POST /adapters/{id}/unload` endpoints.
 - Add async synthesis job APIs: `POST /synthesize/jobs`, `GET /synthesize/jobs/{job_id}`, and `GET /synthesize/jobs/{job_id}/audio`.
 - Add an example Swift client snippet directly in this repo.
+- Add branch protection policy note for required `pytest` vs optional `smoke-e2e` status checks.
 
 ## Change Log
 - 2026-02-26: Initialized roadmap and set M1 for v0.5.0 API parity with committed OpenAPI spec.
@@ -180,3 +181,4 @@
 - 2026-02-26: Split OpenAPI artifacts to protect target spec (`openapi/openapi.yaml`) from export overwrite; generator now writes `openapi/openapi.generated.yaml`.
 - 2026-02-26: Added OpenAPI parity test and CI gate (`export_openapi` + pytest) to enforce target vs generated spec drift detection.
 - 2026-02-26: Implemented M1 parity runtime/API/schema/test updates (M1-T02 through M1-T13), including mode-aware model loading and removal of legacy synth routes.
+- 2026-02-26: Expanded CI with uv-aligned setup and separate model-backed `smoke-e2e` lane, including custom-voice and voice-clone API end-to-end smoke scripts.

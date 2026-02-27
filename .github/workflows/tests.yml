@@ -5,6 +5,9 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
 
 jobs:
   pytest:
@@ -14,10 +17,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.8.0"
+          enable-cache: true
 
-      - name: Set up Python
-        run: uv python install 3.13
+      - name: Set up Python from .python-version
+        run: uv python install "$(cat .python-version)"
 
       - name: Sync dependencies
         run: uv sync --frozen --group dev
@@ -27,3 +33,99 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -q
+
+  smoke-e2e:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      TALKTOMEPY_HOST: 127.0.0.1
+      TALKTOMEPY_PORT: "8000"
+      TALKTOMEPY_RELOAD: "false"
+      QWEN_TTS_IDLE_UNLOAD_SECONDS: "0"
+      QWEN_TTS_WARM_LOAD_ON_START: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.8.0"
+          enable-cache: true
+
+      - name: Set up Python from .python-version
+        run: uv python install "$(cat .python-version)"
+
+      - name: Sync dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Install SoX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sox
+
+      - name: Require HF_TOKEN
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "HF_TOKEN secret is required for smoke-e2e job." >&2
+            exit 1
+          fi
+          {
+            echo "HF_TOKEN=${HF_TOKEN}"
+            echo "HUGGINGFACE_HUB_TOKEN=${HF_TOKEN}"
+          } >> "$GITHUB_ENV"
+
+      - name: Start service
+        run: |
+          mkdir -p outputs
+          nohup uv run python main.py > outputs/service.log 2>&1 &
+          echo $! > outputs/service.pid
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8000/health" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Service did not become healthy in time." >&2
+          exit 1
+
+      - name: Run voice design smoke (direct model)
+        run: |
+          uv run python scripts/voice_design_smoke.py \
+            --output outputs/voice_design_smoke.wav
+
+      - name: Run custom voice smoke (API e2e)
+        run: |
+          uv run python scripts/custom_voice_smoke.py \
+            --base-url "http://127.0.0.1:8000" \
+            --output outputs/custom_voice_smoke.wav
+
+      - name: Run voice clone smoke (API e2e)
+        run: |
+          uv run python scripts/voice_clone_smoke.py \
+            --base-url "http://127.0.0.1:8000" \
+            --output outputs/voice_clone_smoke.wav \
+            --validate-data-url
+
+      - name: Stop service
+        if: always()
+        run: |
+          if [ -f outputs/service.pid ]; then
+            kill "$(cat outputs/service.pid)" || true
+          fi
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-e2e-artifacts
+          path: |
+            outputs/service.log
+            outputs/voice_design_smoke.wav
+            outputs/custom_voice_smoke.wav
+            outputs/voice_clone_smoke.wav

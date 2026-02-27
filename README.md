@@ -102,6 +102,18 @@ uv run python scripts/export_openapi.py
 uv run pytest -q tests/test_openapi_parity.py
 ```
 
+## CI
+
+GitHub Actions runs two lanes:
+
+- `pytest` (required fast lane): lockfile sync + OpenAPI export + full pytest suite.
+- `smoke-e2e` (separate model-backed lane on `main` push, nightly schedule, and manual dispatch):
+  - direct model smoke: `scripts/voice_design_smoke.py`
+  - API e2e custom voice: `scripts/custom_voice_smoke.py`
+  - API e2e voice clone: `scripts/voice_clone_smoke.py`
+
+`smoke-e2e` requires repository secret `HF_TOKEN` and uploads smoke artifacts from `outputs/`.
+
 ## Run as macOS Background Service (launchd)
 
 This repo includes:

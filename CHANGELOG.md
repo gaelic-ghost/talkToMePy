@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `POST /synthesize/custom-voice`
   - `POST /synthesize/voice-clone`
 - OpenAPI parity test gate at `tests/test_openapi_parity.py`.
+- API smoke scripts:
+  - `scripts/custom_voice_smoke.py`
+  - `scripts/voice_clone_smoke.py`
+  - shared helper `scripts/smoke_common.py`
 
 ### Changed
 - OpenAPI version aligned to `v0.5.0` target spec.
@@ -37,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - FastAPI OpenAPI output now uses committed target spec contract.
 - `main.py` now uses env-configurable host/port/reload and defaults to `reload=false`.
 - README now includes a quick demo flow and portable launchd install instructions.
+- GitHub Actions CI now uses uv setup guidance with cache and adds a separate `smoke-e2e` job (main push/nightly/manual) for model-backed synthesis checks.
 
 ### Removed
 - Legacy synthesis endpoints:
