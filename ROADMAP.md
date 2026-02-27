@@ -6,12 +6,12 @@
 - Status: In Progress
 - Target Version: v0.5.0
 - Last Updated: 2026-02-26
-- Summary: Bring the running FastAPI implementation into behavioral and schema parity with `openapi/openapi.yaml` by adding missing endpoints and models, aligning request/response contracts, preserving backward compatibility for existing clients, and shipping validation tests plus docs updates.
+- Summary: Bring the running FastAPI implementation into behavioral and schema parity with `openapi/openapi.yaml` by adding missing endpoints and models, aligning request/response contracts, and shipping validation tests plus docs updates.
 
 ## Milestones
 | ID | Name | Target Version | Status | Target Date | Notes |
 | --- | --- | --- | --- | --- | --- |
-| M1 | API Parity with Committed OpenAPI Spec | v0.5.0 | In Progress | 2026-03-20 | Align runtime and HTTP surface to spec without breaking current `/synthesize` clients |
+| M1 | API Parity with Committed OpenAPI Spec | v0.5.0 | In Progress | 2026-03-20 | Align runtime and HTTP surface to committed target spec |
 
 ## Plan History
 ### 2026-02-26 - Accepted Plan (v0.5.0 / M1)
@@ -22,7 +22,7 @@
     - Add `POST /synthesize/voice-design`
     - Add `POST /synthesize/custom-voice`
     - Add `POST /synthesize/voice-clone`
-    - Keep legacy `POST /synthesize` and `POST /synthesize/stream` as compatibility routes during transition
+    - Remove legacy `POST /synthesize` and `POST /synthesize/stream` in favor of mode-specific synthesis routes
   - Align model loading/control contract:
     - Introduce mode-aware load request (`voice_design`, `custom_voice`, `voice_clone`)
     - Add model-selection behavior that matches spec enums and error semantics
@@ -45,9 +45,9 @@
   - Runtime parity:
     - VoiceDesign, CustomVoice, and VoiceClone flows execute through unified runtime controls with deterministic 4xx/5xx mapping.
     - `GET /custom-voice/speakers` returns supported speakers for selected model or a documented 4xx/5xx failure.
-  - Backward compatibility:
-    - Existing `/synthesize` clients still function for VoiceDesign flow.
-    - Deprecation note exists in README for legacy endpoints, with migration examples.
+  - Compatibility and migration:
+    - Legacy `/synthesize` and `/synthesize/stream` are intentionally removed and documented as a breaking change.
+    - README includes migration examples for the new mode-specific routes.
   - Test bar:
     - Automated tests cover happy paths and key failures (invalid mode/model, loading in progress, unsupported format, invalid clone reference input).
     - CI test command for parity suite is documented in README.
@@ -82,18 +82,18 @@
 | Ticket | Phase | Deliverable | Owner | Estimate | Depends On | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | M1-T01 | 1 | Produce frozen parity matrix (`spec route/schema` -> `code route/schema`) and lock gap list | Gale | 0.5d | - | Done |
-| M1-T02 | 1 | Define compatibility contract for legacy `/synthesize` and `/synthesize/stream` (deprecation behavior + headers/docs) | Gale | 0.5d | M1-T01 | Planned |
-| M1-T03 | 1 | Finalize canonical mode/model enums and error mapping table (`400/503/500`) | Gale | 0.5d | M1-T01 | Planned |
-| M1-T04 | 2 | Implement mode-aware runtime state and model load request handling (`voice_design/custom_voice/voice_clone`) | Gale | 1.0d | M1-T03 | Planned |
-| M1-T05 | 2 | Add runtime wrappers for `generate_custom_voice` and `generate_voice_clone` with uniform exception mapping | Gale | 1.0d | M1-T04 | Planned |
-| M1-T06 | 2 | Add runtime helpers for `model inventory` and `supported speakers` queries | Gale | 0.5d | M1-T04 | Planned |
-| M1-T07 | 3 | Add HTTP endpoints: `GET /model/inventory`, `GET /custom-voice/speakers` | Gale | 0.5d | M1-T06 | Planned |
-| M1-T08 | 3 | Add HTTP endpoints: `POST /synthesize/voice-design`, `POST /synthesize/custom-voice`, `POST /synthesize/voice-clone` | Gale | 1.0d | M1-T05 | Planned |
-| M1-T09 | 3 | Introduce new Pydantic schemas for load/inventory/speaker/custom/clone and align status payload shapes | Gale | 0.75d | M1-T03 | Planned |
-| M1-T10 | 3 | Preserve legacy endpoints by delegating to new handlers with migration-safe behavior | Gale | 0.5d | M1-T08 | Planned |
-| M1-T11 | 4 | Add endpoint tests for happy paths and key errors (invalid model/mode, loading state, invalid clone input) | Gale | 1.5d | M1-T07, M1-T08, M1-T09 | Planned |
+| M1-T02 | 1 | Define compatibility contract for legacy `/synthesize` and `/synthesize/stream` (breaking-change removal + docs) | Gale | 0.5d | M1-T01 | Done |
+| M1-T03 | 1 | Finalize canonical mode/model enums and error mapping table (`400/503/500`) | Gale | 0.5d | M1-T01 | Done |
+| M1-T04 | 2 | Implement mode-aware runtime state and model load request handling (`voice_design/custom_voice/voice_clone`) | Gale | 1.0d | M1-T03 | Done |
+| M1-T05 | 2 | Add runtime wrappers for `generate_custom_voice` and `generate_voice_clone` with uniform exception mapping | Gale | 1.0d | M1-T04 | Done |
+| M1-T06 | 2 | Add runtime helpers for `model inventory` and `supported speakers` queries | Gale | 0.5d | M1-T04 | Done |
+| M1-T07 | 3 | Add HTTP endpoints: `GET /model/inventory`, `GET /custom-voice/speakers` | Gale | 0.5d | M1-T06 | Done |
+| M1-T08 | 3 | Add HTTP endpoints: `POST /synthesize/voice-design`, `POST /synthesize/custom-voice`, `POST /synthesize/voice-clone` | Gale | 1.0d | M1-T05 | Done |
+| M1-T09 | 3 | Introduce new Pydantic schemas for load/inventory/speaker/custom/clone and align status payload shapes | Gale | 0.75d | M1-T03 | Done |
+| M1-T10 | 3 | Remove legacy `/synthesize` and `/synthesize/stream` routes and finalize migration-safe docs | Gale | 0.5d | M1-T08 | Done |
+| M1-T11 | 4 | Add endpoint tests for happy paths and key errors (invalid model/mode, loading state, invalid clone input) | Gale | 1.5d | M1-T07, M1-T08, M1-T09 | Done |
 | M1-T12 | 4 | Add parity test/assertion: `openapi/openapi.yaml` == `openapi/openapi.generated.yaml` (or intentional diff gate) | Gale | 0.5d | M1-T07, M1-T08, M1-T09 | Done |
-| M1-T13 | 4 | Update README with new endpoints + migration examples and deprecation note | Gale | 0.5d | M1-T10 | Planned |
+| M1-T13 | 4 | Update README with new endpoints + migration examples and breaking-change note | Gale | 0.5d | M1-T10 | Done |
 | M1-T14 | 5 | Run smoke suite, finalize changelog entry, and mark milestone complete if acceptance criteria pass | Gale | 0.5d | M1-T11, M1-T12, M1-T13 | Planned |
 
 ### Live Progress Board (M1)
@@ -101,15 +101,22 @@
 - None.
 
 #### Planned
-- M1-T02, M1-T03
-- M1-T04, M1-T05, M1-T06
-- M1-T07, M1-T08, M1-T09, M1-T10
-- M1-T11, M1-T13
 - M1-T14
 
 #### Done
 - M1-T01 (Phase 1): Frozen parity matrix and locked gap list completed.
+- M1-T02 (Phase 1): Legacy synth compatibility contract finalized as intentional breaking-change removal.
+- M1-T03 (Phase 1): Mode/model enums and error mapping finalized.
+- M1-T04 (Phase 2): Mode-aware runtime state and load request handling implemented.
+- M1-T05 (Phase 2): Runtime wrappers added for custom-voice and voice-clone synthesis.
+- M1-T06 (Phase 2): Inventory and speaker discovery runtime helpers added.
+- M1-T07 (Phase 3): HTTP endpoints added for model inventory and custom-voice speakers.
+- M1-T08 (Phase 3): HTTP endpoints added for voice-design/custom-voice/voice-clone synthesis.
+- M1-T09 (Phase 3): Pydantic schema set aligned to target contract.
+- M1-T10 (Phase 3): Legacy `/synthesize` and `/synthesize/stream` routes removed.
+- M1-T11 (Phase 4): Endpoint tests expanded for happy/error parity scenarios.
 - M1-T12 (Phase 4): OpenAPI parity assertion added with CI export+test gate.
+- M1-T13 (Phase 4): README migration and breaking-change updates completed.
 
 ### Frozen Parity Matrix (M1-T01)
 #### Route/Method Parity Snapshot (2026-02-26)
@@ -136,7 +143,7 @@
 - Implement missing parity endpoints (`M1-T07`, `M1-T08`).
 - Add mode-aware `ModelLoadRequest` and canonical mode/model mapping (`M1-T03`, `M1-T04`, `M1-T09`).
 - Expand runtime for `custom_voice` and `voice_clone` execution paths (`M1-T05`, `M1-T06`).
-- Preserve legacy `/synthesize` and `/synthesize/stream` as compatibility shims with documented deprecation path (`M1-T02`, `M1-T10`, `M1-T13`).
+- Remove legacy `/synthesize` and `/synthesize/stream` and document migration path (`M1-T02`, `M1-T10`, `M1-T13`).
 - Add OpenAPI parity assertion tests and CI guardrails (`M1-T11`, `M1-T12`).
 
 ### Sequencing Notes
@@ -155,7 +162,7 @@
 - Add a small auth layer for non-local deployments.
 
 ### TODO Queue
-- Add unit tests for `/model/load`, `/synthesize`, and `/synthesize/stream` error paths.
+- Add deeper unit tests for `/model/load`, `/synthesize/voice-design`, `/synthesize/custom-voice`, and `/synthesize/voice-clone` error paths.
 - Add integration test that writes and validates returned WAV header.
 - Add graceful startup warm-load option (env-controlled).
 - Add response metadata headers for generation latency.
@@ -172,3 +179,4 @@
 - 2026-02-26: Completed M1-T01 by freezing a route/method parity matrix and locking the gap list for Phase 2/3 implementation.
 - 2026-02-26: Split OpenAPI artifacts to protect target spec (`openapi/openapi.yaml`) from export overwrite; generator now writes `openapi/openapi.generated.yaml`.
 - 2026-02-26: Added OpenAPI parity test and CI gate (`export_openapi` + pytest) to enforce target vs generated spec drift detection.
+- 2026-02-26: Implemented M1 parity runtime/API/schema/test updates (M1-T02 through M1-T13), including mode-aware model loading and removal of legacy synth routes.

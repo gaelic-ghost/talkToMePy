@@ -21,17 +21,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Adapter discovery/status endpoints:
   - `GET /adapters`
   - `GET /adapters/{adapter_id}/status`
-- `POST /synthesize/stream` endpoint for streaming WAV response transport.
+- Mode-aware model inventory endpoint `GET /model/inventory`.
+- Custom voice speaker discovery endpoint `GET /custom-voice/speakers`.
+- Mode-specific synthesis endpoints:
+  - `POST /synthesize/voice-design`
+  - `POST /synthesize/custom-voice`
+  - `POST /synthesize/voice-clone`
+- OpenAPI parity test gate at `tests/test_openapi_parity.py`.
 
 ### Changed
-- `GET /model/status` now reports idle/last-use metadata.
+- OpenAPI version aligned to `v0.5.0` target spec.
+- `GET /model/status` and `GET /adapters/{adapter_id}/status` now expose mode-aware fields (`mode`, `requested_mode`, `requested_model_id`, `strict_load`, `fallback_applied`).
+- `POST /model/load` now requires a mode-aware request body (`ModelLoadRequest`) and supports strict/fallback model selection behavior.
+- `scripts/export_openapi.py` now writes generated spec to `openapi/openapi.generated.yaml` to protect target `openapi/openapi.yaml`.
+- FastAPI OpenAPI output now uses committed target spec contract.
 - `main.py` now uses env-configurable host/port/reload and defaults to `reload=false`.
 - README now includes a quick demo flow and portable launchd install instructions.
-- `/model/status` now reports model loading state and last load error details.
-- `/model/load` now returns `202` while asynchronous model loading is in progress.
-- `/synthesize` now returns `503` with retry guidance when model loading is in progress.
-- OpenAPI docs now describe `/model/load` async `202` and `/synthesize` binary `audio/wav` responses.
-- README and OpenAPI docs now include the v1 subset endpoints above.
+
+### Removed
+- Legacy synthesis endpoints:
+  - `POST /synthesize`
+  - `POST /synthesize/stream`
 
 ## [0.1.0] - 2026-02-21
 

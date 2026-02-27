@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "accelerate>=1.12.0",
     "fastapi>=0.129.1",
+    "pyyaml>=6.0.0",
     "qwen-tts>=0.1.1",
     "soundfile>=0.13.1",
     "torch>=2.10.0",

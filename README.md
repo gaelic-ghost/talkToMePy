@@ -18,8 +18,10 @@ In another terminal:
 
 ```bash
 mkdir -p outputs
-curl -X POST http://127.0.0.1:8000/model/load
-curl -X POST http://127.0.0.1:8000/synthesize \
+curl -X POST http://127.0.0.1:8000/model/load \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"voice_design","strict_load":false}'
+curl -X POST http://127.0.0.1:8000/synthesize/voice-design \
   -H "Content-Type: application/json" \
   -d '{"text":"Hello from TalkToMePy demo.","instruct":"Warm and clear narrator voice.","language":"English","format":"wav"}' \
   --output outputs/demo.wav
@@ -79,7 +81,7 @@ This repo includes separate target and generated YAML specs:
 
 - Target spec (do not overwrite): `openapi/openapi.yaml`
 - Backup copy of target spec: `openapi/openapi.target.yaml`
-- Generated from FastAPI/Pydantic models: `openapi/openapi.generated.yaml`
+- Generated export from app OpenAPI schema: `openapi/openapi.generated.yaml`
 
 Regenerate the generated spec after API changes:
 
@@ -159,15 +161,19 @@ Notes for modern macOS (including macOS 26):
 - `GET /version` returns API/service version metadata
 - `GET /adapters` lists available runtime adapters
 - `GET /adapters/{adapter_id}/status` returns adapter-specific status
-- `GET /model/status` returns model runtime readiness (SoX, qwen-tts, load state)
-- `POST /model/load` lazily loads the configured model into memory
+- `GET /model/status` returns mode-aware model runtime readiness/status
+- `GET /model/inventory` returns supported model inventory and local availability
+- `POST /model/load` accepts mode-aware load request and lazily loads selected model
 - `POST /model/unload` unloads the model from memory
-- `POST /synthesize` returns generated audio bytes as `audio/wav`
-- `POST /synthesize/stream` streams generated audio bytes as `audio/wav`
+- `GET /custom-voice/speakers` returns supported custom-voice speakers for selected model
+- `POST /synthesize/voice-design` returns generated audio bytes as `audio/wav`
+- `POST /synthesize/custom-voice` returns generated audio bytes as `audio/wav`
+- `POST /synthesize/voice-clone` returns generated audio bytes as `audio/wav`
 
 Notes:
 - `POST /model/load` may return `202 Accepted` while loading is in progress.
-- `POST /synthesize` returns `503` with `Retry-After` if model is still loading.
+- Synth routes return `503` with `Retry-After` if model is still loading.
+- Legacy `POST /synthesize` and `POST /synthesize/stream` were removed in v0.5.0.
 
 ## Quickstart
 
@@ -192,7 +198,13 @@ curl http://127.0.0.1:8000/model/status
 ```
 
 ```bash
-curl -X POST http://127.0.0.1:8000/model/load
+curl http://127.0.0.1:8000/model/inventory
+```
+
+```bash
+curl -X POST http://127.0.0.1:8000/model/load \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"voice_design","strict_load":false}'
 ```
 
 ```bash
@@ -200,17 +212,24 @@ curl -X POST http://127.0.0.1:8000/model/unload
 ```
 
 ```bash
-curl -X POST http://127.0.0.1:8000/synthesize \
+curl -X POST http://127.0.0.1:8000/synthesize/voice-design \
   -H "Content-Type: application/json" \
   -d '{"text":"Hello from Swift bridge!","instruct":"Warm and friendly voice with steady pace.","language":"English","format":"wav"}' \
   --output outputs/from_service.wav
 ```
 
 ```bash
-curl -N -X POST http://127.0.0.1:8000/synthesize/stream \
+curl -X POST http://127.0.0.1:8000/synthesize/custom-voice \
   -H "Content-Type: application/json" \
-  -d '{"text":"Streaming endpoint test.","instruct":"Warm and friendly voice with steady pace.","language":"English","format":"wav"}' \
-  --output outputs/from_stream.wav
+  -d '{"text":"Custom voice endpoint test.","speaker":"ryan","language":"English","format":"wav"}' \
+  --output outputs/from_custom.wav
+```
+
+```bash
+curl -X POST http://127.0.0.1:8000/synthesize/voice-clone \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Voice clone endpoint test.","reference_audio_b64":"UklGRg==","language":"English","format":"wav"}' \
+  --output outputs/from_clone.wav
 ```
 
 Play the generated file on macOS:
@@ -231,7 +250,7 @@ uv run python scripts/voice_design_smoke.py \
 ## Notes
 
 - `qwen-tts` currently requires `transformers==4.57.3` (pinned in this repo).
-- `/synthesize` currently supports `format: "wav"` only.
+- All synth endpoints currently support `format: "wav"` only.
 - Model id can be overridden with env var `QWEN_TTS_MODEL_ID`.
 - Optional idle auto-unload can be enabled with env var `QWEN_TTS_IDLE_UNLOAD_SECONDS`.
 - Optional startup warm-load can be enabled with env var `QWEN_TTS_WARM_LOAD_ON_START=true`.
