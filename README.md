@@ -137,6 +137,28 @@ Manage it:
 ./scripts/launchd_instance.sh remove --instance stable
 ```
 
+### Routine Update (stable)
+
+Use a single command for safe pull, setup sync, relaunch, and health check:
+
+```bash
+./scripts/update_stable.sh
+```
+
+Force full launchd reinstall flow (re-render plist + bootstrap + kickstart):
+
+```bash
+./scripts/update_stable.sh --reinstall
+```
+
+Useful variants:
+
+```bash
+./scripts/update_stable.sh --skip-pull
+./scripts/update_stable.sh --no-check
+./scripts/update_stable.sh --skip-pull --no-check
+```
+
 ### Stable + Dev Side-by-Side on One Mac
 
 Install from each clone with a different instance name and port:

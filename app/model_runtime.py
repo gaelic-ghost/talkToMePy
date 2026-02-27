@@ -288,6 +288,8 @@ def _background_load_worker(*, target_mode: ModelMode, target_model_id: str) -> 
 
 
 def start_model_loading(*, mode: str, model_id: str | None, strict_load: bool = False) -> bool:
+    global _MODEL, _ACTIVE_MODE, _ACTIVE_MODEL_ID
+
     typed_mode = _validate_mode(mode)
     resolved_model_id, fallback_applied = _resolve_mode_model(
         mode=typed_mode,
