@@ -13,6 +13,7 @@ wheels/
 
 # Local outputs and env overrides
 outputs/
+tts_outputs/
 .env
 .env.*
 !.env.example
