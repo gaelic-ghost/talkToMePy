@@ -575,6 +575,7 @@ def synthesize_voice_clone(
             text=text,
             language=language,
             ref_audio=ref_audio,
+            x_vector_only_mode=True,
             non_streaming_mode=True,
         )
 

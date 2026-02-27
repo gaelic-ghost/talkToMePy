@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import base64
+from io import BytesIO
 import json
+import os
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+import soundfile as sf
+
+
+def parse_e2e_base_urls() -> list[str]:
+    raw = os.getenv("TALKTOMEPY_E2E_BASE_URLS", "http://127.0.0.1:8000")
+    urls = [item.strip().rstrip("/") for item in raw.split(",") if item.strip()]
+    return urls or ["http://127.0.0.1:8000"]
 
 
 def _decode_response_body(raw: bytes) -> Any:
@@ -66,17 +77,15 @@ def request_binary(
 
 def ensure_healthy(base_url: str, timeout_seconds: int = 120) -> None:
     deadline = time.time() + timeout_seconds
-    last_error: str | None = None
     while time.time() < deadline:
         try:
             status, _, payload = request_json("GET", f"{base_url}/health", timeout=5.0)
             if status == 200 and isinstance(payload, dict) and payload.get("status") == "ok":
                 return
-            last_error = f"unexpected /health status={status} payload={payload}"
-        except Exception as exc:
-            last_error = str(exc)
+        except Exception:
+            pass
         time.sleep(2)
-    raise RuntimeError(f"Service did not become healthy: {last_error}")
+    raise RuntimeError(f"Service did not become healthy at {base_url}")
 
 
 def load_mode_and_wait(base_url: str, mode: str, timeout_seconds: int = 600) -> dict[str, Any]:
@@ -116,3 +125,27 @@ def assert_wav_response(status: int, headers: dict[str, str], body: bytes, endpo
 
     if body[:4] != b"RIFF" or body[8:12] != b"WAVE":
         raise RuntimeError(f"{endpoint} response is not a valid RIFF/WAVE header")
+
+
+def unload_and_assert_e2e(base_url: str) -> None:
+    status, _, payload = request_json("POST", f"{base_url}/model/unload", timeout=30.0)
+    if status != 200 or not isinstance(payload, dict):
+        raise RuntimeError(f"/model/unload failed at {base_url}: status={status} payload={payload}")
+    if payload.get("loaded") is not False or payload.get("loading") is not False:
+        raise RuntimeError(f"/model/unload did not clear runtime state at {base_url}: payload={payload}")
+
+    status, _, status_payload = request_json("GET", f"{base_url}/model/status", timeout=30.0)
+    if status != 200 or not isinstance(status_payload, dict):
+        raise RuntimeError(
+            f"/model/status check failed after unload at {base_url}: status={status} payload={status_payload}"
+        )
+    if status_payload.get("loaded") is not False or status_payload.get("loading") is not False:
+        raise RuntimeError(
+            f"/model/status still indicates loaded/loading after unload at {base_url}: payload={status_payload}"
+        )
+
+
+def wav_to_base64(wav: Any, sample_rate: int) -> str:
+    buffer = BytesIO()
+    sf.write(buffer, wav, sample_rate, format="WAV")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")

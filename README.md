@@ -108,11 +108,11 @@ GitHub Actions runs two lanes:
 
 - `pytest` (required fast lane): lockfile sync + OpenAPI export + full pytest suite.
 - `smoke-e2e` (separate model-backed lane on `main` push, nightly schedule, and manual dispatch):
-  - direct model smoke: `scripts/voice_design_smoke.py`
-  - API e2e custom voice: `scripts/custom_voice_smoke.py`
-  - API e2e voice clone: `scripts/voice_clone_smoke.py`
+  - direct model suite: `uv run pytest -q -m direct_model tests/direct_model`
+  - API e2e suite: `uv run pytest -q -m e2e_api tests/e2e_api`
+  - runner (default sequential): `./scripts/run_model_tests.sh --execution seq`
 
-`smoke-e2e` requires repository secret `HF_TOKEN` and uploads smoke artifacts from `outputs/`.
+`smoke-e2e` requires repository secret `HF_TOKEN`.
 
 ## Run as macOS Background Service (launchd)
 
@@ -298,19 +298,33 @@ Play the generated file on macOS:
 afplay outputs/from_service.wav
 ```
 
-## VoiceDesign Smoke Script
+## Model-Backed Pytest Suites
 
 ```bash
-uv run python scripts/voice_design_smoke.py \
-  --text "Hello from my Swift CLI bridge." \
-  --instruct "Energetic, friendly, and slightly brisk pacing with bright tone." \
-  --output outputs/swift_bridge_demo.wav
+uv run pytest -q -m direct_model tests/direct_model
+uv run pytest -q -m e2e_api tests/e2e_api
+```
+
+Run both suites with the helper script (sequential by default):
+
+```bash
+./scripts/run_model_tests.sh
+./scripts/run_model_tests.sh --execution seq
+./scripts/run_model_tests.sh --execution par
+```
+
+Target one or more running service instances for e2e:
+
+```bash
+TALKTOMEPY_E2E_BASE_URLS=http://127.0.0.1:8000 ./scripts/run_model_tests.sh --execution seq
+TALKTOMEPY_E2E_BASE_URLS=http://127.0.0.1:8000,http://127.0.0.1:8001 ./scripts/run_model_tests.sh --execution seq
 ```
 
 ## Notes
 
 - `qwen-tts` currently requires `transformers==4.57.3` (pinned in this repo).
 - All synth endpoints currently support `format: "wav"` only.
+- Voice-clone runtime currently calls qwen-tts with `x_vector_only_mode=true`, so clone generation uses reference audio speaker embedding only (no `ref_text` prompt required yet).
 - Model id can be overridden with env var `QWEN_TTS_MODEL_ID`.
 - Optional idle auto-unload can be enabled with env var `QWEN_TTS_IDLE_UNLOAD_SECONDS`.
 - Optional startup warm-load can be enabled with env var `QWEN_TTS_WARM_LOAD_ON_START=true`.

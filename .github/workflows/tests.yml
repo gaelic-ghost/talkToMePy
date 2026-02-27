@@ -94,23 +94,11 @@ jobs:
           echo "Service did not become healthy in time." >&2
           exit 1
 
-      - name: Run voice design smoke (direct model)
+      - name: Run model-backed pytest suites (sequential)
+        env:
+          TALKTOMEPY_E2E_BASE_URLS: "http://127.0.0.1:8000"
         run: |
-          uv run python scripts/voice_design_smoke.py \
-            --output outputs/voice_design_smoke.wav
-
-      - name: Run custom voice smoke (API e2e)
-        run: |
-          uv run python scripts/custom_voice_smoke.py \
-            --base-url "http://127.0.0.1:8000" \
-            --output outputs/custom_voice_smoke.wav
-
-      - name: Run voice clone smoke (API e2e)
-        run: |
-          uv run python scripts/voice_clone_smoke.py \
-            --base-url "http://127.0.0.1:8000" \
-            --output outputs/voice_clone_smoke.wav \
-            --validate-data-url
+          ./scripts/run_model_tests.sh --execution seq
 
       - name: Stop service
         if: always()
@@ -126,6 +114,3 @@ jobs:
           name: smoke-e2e-artifacts
           path: |
             outputs/service.log
-            outputs/voice_design_smoke.wav
-            outputs/custom_voice_smoke.wav
-            outputs/voice_clone_smoke.wav

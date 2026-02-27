@@ -171,6 +171,7 @@
 - Add async synthesis job APIs: `POST /synthesize/jobs`, `GET /synthesize/jobs/{job_id}`, and `GET /synthesize/jobs/{job_id}/audio`.
 - Add an example Swift client snippet directly in this repo.
 - Add branch protection policy note for required `pytest` vs optional `smoke-e2e` status checks.
+- Add optional `ref_text` support for voice clone requests/runtime (toggle between x-vector-only and ICL clone modes).
 
 ## Change Log
 - 2026-02-26: Initialized roadmap and set M1 for v0.5.0 API parity with committed OpenAPI spec.
