@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from io import BytesIO
 import os
 from pathlib import Path
@@ -47,11 +48,6 @@ from app.schemas import (
     VersionResponse,
 )
 
-app = FastAPI(
-    title="TalkToMePy Service",
-    version="0.5.0",
-    description="A local TTS service for Qwen3-TTS VoiceDesign and CustomVoice modes.",
-)
 _idle_unload_task: asyncio.Task[None] | None = None
 _IDLE_UNLOAD_SECONDS = int(os.getenv("QWEN_TTS_IDLE_UNLOAD_SECONDS", "0"))
 _WARM_LOAD_ON_START = os.getenv("QWEN_TTS_WARM_LOAD_ON_START", "false").strip().lower() == "true"
@@ -66,9 +62,6 @@ def _custom_openapi() -> dict[str, Any]:
     with target_path.open("r", encoding="utf-8") as f:
         app.openapi_schema = yaml.safe_load(f)
     return app.openapi_schema
-
-
-app.openapi = _custom_openapi
 
 
 def _build_model_status_response() -> ModelStatusResponse:
@@ -127,8 +120,8 @@ async def _idle_unload_worker() -> None:
         maybe_unload_if_idle(_IDLE_UNLOAD_SECONDS)
 
 
-@app.on_event("startup")
-async def startup_event() -> None:
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
     global _idle_unload_task
     if _IDLE_UNLOAD_SECONDS > 0:
         _idle_unload_task = asyncio.create_task(_idle_unload_worker())
@@ -137,18 +130,25 @@ async def startup_event() -> None:
             start_model_loading(mode="voice_design", model_id=None, strict_load=False)
         except RuntimeDependencyError:
             pass
+    try:
+        yield
+    finally:
+        if _idle_unload_task is not None:
+            _idle_unload_task.cancel()
+            try:
+                await _idle_unload_task
+            except asyncio.CancelledError:
+                pass
+            _idle_unload_task = None
 
 
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    global _idle_unload_task
-    if _idle_unload_task is not None:
-        _idle_unload_task.cancel()
-        try:
-            await _idle_unload_task
-        except asyncio.CancelledError:
-            pass
-        _idle_unload_task = None
+app = FastAPI(
+    title="TalkToMePy Service",
+    version="0.5.0",
+    description="A local TTS service for Qwen3-TTS VoiceDesign and CustomVoice modes.",
+    lifespan=_lifespan,
+)
+app.openapi = _custom_openapi
 
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])

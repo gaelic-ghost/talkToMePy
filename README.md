@@ -159,6 +159,32 @@ Useful variants:
 ./scripts/update_stable.sh --skip-pull --no-check
 ```
 
+### Routine Update (dev)
+
+Use a single command for setup sync, relaunch, and health check on the dev instance:
+
+```bash
+./scripts/update_dev.sh
+```
+
+By default, dev update skips git pull. To pull your current branch from its upstream first:
+
+```bash
+./scripts/update_dev.sh --pull-current
+```
+
+Force full launchd reinstall flow (re-render plist + bootstrap + kickstart):
+
+```bash
+./scripts/update_dev.sh --reinstall
+```
+
+Skip post-update health check:
+
+```bash
+./scripts/update_dev.sh --no-check
+```
+
 ### Stable + Dev Side-by-Side on One Mac
 
 Install from each clone with a different instance name and port:
