@@ -28,10 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `POST /synthesize/custom-voice`
   - `POST /synthesize/voice-clone`
 - OpenAPI parity test gate at `tests/test_openapi_parity.py`.
-- API smoke scripts:
-  - `scripts/custom_voice_smoke.py`
-  - `scripts/voice_clone_smoke.py`
-  - shared helper `scripts/smoke_common.py`
+- Model-backed pytest runner script: `scripts/run_model_tests.sh`.
 
 ### Changed
 - OpenAPI version aligned to `v0.5.0` target spec.

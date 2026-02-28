@@ -156,6 +156,8 @@ Useful variants:
 ```bash
 ./scripts/update_stable.sh --skip-pull
 ./scripts/update_stable.sh --no-check
+./scripts/update_stable.sh --check-model-ready
+./scripts/update_stable.sh --restart-only
 ./scripts/update_stable.sh --skip-pull --no-check
 ```
 
@@ -183,6 +185,13 @@ Skip post-update health check:
 
 ```bash
 ./scripts/update_dev.sh --no-check
+```
+
+Additional variants:
+
+```bash
+./scripts/update_dev.sh --check-model-ready
+./scripts/update_dev.sh --restart-only
 ```
 
 ### Stable + Dev Side-by-Side on One Mac
@@ -286,9 +295,10 @@ curl -X POST http://127.0.0.1:8000/synthesize/custom-voice \
 ```
 
 ```bash
+REF_B64="$(base64 < outputs/from_service.wav | tr -d '\n')"
 curl -X POST http://127.0.0.1:8000/synthesize/voice-clone \
   -H "Content-Type: application/json" \
-  -d '{"text":"Voice clone endpoint test.","reference_audio_b64":"UklGRg==","language":"English","format":"wav"}' \
+  -d "{\"text\":\"Voice clone endpoint test.\",\"reference_audio_b64\":\"${REF_B64}\",\"language\":\"English\",\"format\":\"wav\"}" \
   --output outputs/from_clone.wav
 ```
 
