@@ -13,12 +13,14 @@ Options:
   --reinstall         Force launchd install flow
   --restart-only      Force restart flow (error if agent plist missing)
   --no-check          Skip post-update /health validation
+  --check-model-ready Trigger model load and wait for ready state after health check
   -h, --help          Show this help
 
 Examples:
   ./scripts/update_dev.sh
   ./scripts/update_dev.sh --pull-current
   ./scripts/update_dev.sh --reinstall
+  ./scripts/update_dev.sh --check-model-ready
   ./scripts/update_dev.sh --no-check
 USAGE
 }
@@ -32,6 +34,7 @@ DO_PULL_CURRENT=false
 DO_CHECK=true
 FORCE_REINSTALL=false
 FORCE_RESTART_ONLY=false
+CHECK_MODEL_READY=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -59,6 +62,10 @@ while [[ $# -gt 0 ]]; do
       DO_CHECK=false
       shift
       ;;
+    --check-model-ready)
+      CHECK_MODEL_READY=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -73,6 +80,11 @@ done
 
 if [[ "$FORCE_REINSTALL" == true && "$FORCE_RESTART_ONLY" == true ]]; then
   echo "Flags --reinstall and --restart-only are mutually exclusive." >&2
+  exit 1
+fi
+
+if [[ "$DO_CHECK" != true && "$CHECK_MODEL_READY" == true ]]; then
+  echo "Flags --no-check and --check-model-ready are mutually exclusive." >&2
   exit 1
 fi
 
@@ -189,6 +201,8 @@ fi
 if [[ "$DO_CHECK" == true ]]; then
   echo "[4/4] Checking health"
   HEALTH_URL="http://127.0.0.1:${PORT}/health"
+  MODEL_LOAD_URL="http://127.0.0.1:${PORT}/model/load"
+  MODEL_STATUS_URL="http://127.0.0.1:${PORT}/model/status"
   HEALTH_BODY=""
   OK=false
 
@@ -209,6 +223,44 @@ if [[ "$DO_CHECK" == true ]]; then
   fi
 
   echo "Health OK: $HEALTH_BODY"
+
+  if [[ "$CHECK_MODEL_READY" == true ]]; then
+    echo "Checking model readiness"
+    LOAD_BODY_FILE="$(mktemp)"
+    LOAD_STATUS="$(curl -sS -o "$LOAD_BODY_FILE" -w "%{http_code}" -X POST "$MODEL_LOAD_URL" \
+      -H "Content-Type: application/json" \
+      -d '{"mode":"voice_design","strict_load":false}' || true)"
+    if [[ "$LOAD_STATUS" != "200" && "$LOAD_STATUS" != "202" ]]; then
+      echo "Model load request failed with HTTP $LOAD_STATUS: $MODEL_LOAD_URL" >&2
+      cat "$LOAD_BODY_FILE" >&2 || true
+      rm -f "$LOAD_BODY_FILE"
+      exit 1
+    fi
+    rm -f "$LOAD_BODY_FILE"
+
+    MODEL_STATUS_BODY=""
+    MODEL_OK=false
+    for _ in $(seq 1 90); do
+      if MODEL_STATUS_BODY="$(curl -fsS "$MODEL_STATUS_URL" 2>/dev/null)"; then
+        if printf '%s' "$MODEL_STATUS_BODY" | rg -q '"loaded"\s*:\s*true'; then
+          MODEL_OK=true
+          break
+        fi
+      fi
+      sleep 1
+    done
+
+    if [[ "$MODEL_OK" != true ]]; then
+      echo "Model readiness check failed after 90 seconds: $MODEL_STATUS_URL" >&2
+      echo "Last model status: ${MODEL_STATUS_BODY:-<unavailable>}" >&2
+      echo "Check status: ./scripts/launchd_instance.sh status --instance $INSTANCE" >&2
+      echo "Logs: $HOME/Library/Logs/talktomepy.$INSTANCE.stdout.log" >&2
+      echo "      $HOME/Library/Logs/talktomepy.$INSTANCE.stderr.log" >&2
+      exit 1
+    fi
+
+    echo "Model ready: $MODEL_STATUS_BODY"
+  fi
 else
   echo "[4/4] Checking health (skipped via --no-check)"
   echo "Next: curl -fsS http://127.0.0.1:${PORT}/health"
