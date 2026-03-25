@@ -1,6 +1,7 @@
 # TalkToMePy
 
-Local Qwen3 VoiceDesign TTS service built with FastAPI.
+Proof of concept Local Qwen3 VoiceDesign TTS service built with FastAPI.
+Not actively supported, please see my [SpeakToUser MCP](github/com/gaelic-ghost/speak-to-user) instead for a better experience with ongoing support and updates.
 
 ## Status
 
